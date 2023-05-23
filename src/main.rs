@@ -10,7 +10,7 @@ fn main() {
     for _i in 0..12 {
         let handle = thread::spawn(move || {
             let result: HashMap<String, i32> = gen_dicts(10000000);
-            result.clone()
+            result
         });
         handles.push(handle);
     }
