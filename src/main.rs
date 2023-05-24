@@ -7,7 +7,7 @@ use std::time::Instant;
 
 fn main() {
     let mut handles: Vec<JoinHandle<HashMap<String, i32>>> = Vec::new();
-    for _i in 0..12 {
+    for _i in 0..28 {
         let handle = thread::spawn(move || {
             let result: HashMap<String, i32> = gen_dicts(10000000);
             result
@@ -34,7 +34,7 @@ fn _process_dict(dict: &Arc<Mutex<HashMap<String, i32>>>) -> HashMap<String, i32
     for (key, value) in dict_lock.iter() {
         println!("{} => {}", key, value);
     }
-    dict_lock.clone()
+    dict_lock
 }
 
 // Function to process a dictionary (HashMap) in Rust
@@ -54,5 +54,5 @@ fn gen_dicts(_size: i32) -> HashMap<String, i32> {
         dict.insert(key, value);
     }
     println!("The length of the generated dict is: {}", dict.len());
-    dict.clone()
+    dict
 }
