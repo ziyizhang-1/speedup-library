@@ -24,7 +24,8 @@ fn main() {
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     let now = Instant::now();
-    merge_dicts(&dicts[0], &dicts[1]);
+    let merged_dict = merge_dicts(&dicts[0], &dicts[1]);
+    println!("The length of the merged dict is: {}", merged_dict.len());
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
 }
@@ -34,16 +35,16 @@ fn _process_dict(dict: &Arc<Mutex<HashMap<String, i32>>>) -> HashMap<String, i32
     for (key, value) in dict_lock.iter() {
         println!("{} => {}", key, value);
     }
-    dict_lock
+    dict_lock.clone()
 }
 
 // Function to process a dictionary (HashMap) in Rust
-fn merge_dicts(dict1: &HashMap<String, i32>, dict2: &HashMap<String, i32>) {
+fn merge_dicts(dict1: &HashMap<String, i32>, dict2: &HashMap<String, i32>) -> HashMap<String, i32> {
     println!("Merging HashMaps");
     let mut merged_dict: HashMap<String, i32> = HashMap::new();
     merged_dict.extend(dict1.clone());
     merged_dict.extend(dict2.clone());
-    println!("The length of the merged dict is: {}", merged_dict.len());
+    merged_dict
 }
 
 fn gen_dicts(_size: i32) -> HashMap<String, i32> {
