@@ -12,6 +12,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, List
+from multiprocess import Pool
 
 import cli.args
 from cli.args import parse_args
@@ -110,34 +111,69 @@ def run(args):
     print('')
     print('Processing EMON data: ...', end='', flush=True)
     unique_events = set()
-
+    num_blocks = len(parser.partition(chunk_size=1, **cli.args.get_sample_range_args(args)))
+    if args.num_workers:
+        args.chunk_size = num_blocks // args.num_workers + 1 if num_blocks%args.num_workers!=0 else 0
+    
     # Split the EMON file into partitions that can be processed in parallel
     partitions = parser.partition(chunk_size=args.chunk_size,
                                   **cli.args.get_sample_range_args(args))
 
+    def process_one_partition(partition):
+        # Read the entire partition into memory
+        emon_event_reader = parser.event_reader(partition=partition, chunk_size=0)
+        emon_df = next(emon_event_reader)
+        sample_count = parser.last_sample_processed - parser.very_first_sample_processed + 1
+
+        if detail_views_requested:
+            detail_views = view_generator.generate_detail_views(emon_df)
+            view_writer.write(list(detail_views.values()),
+                            first_sample=parser.first_sample_processed,
+                            last_sample=parser.last_sample_processed)
+        
+        return emon_df, sample_count, detail_views if detail_views_requested else None
+
     with timer() as number_of_seconds:
         # Process each partitions independently and serialize all computation results.
         # Iterations are independent and can therefore run in parallel.
-        for partition in partitions:
-            # Read the entire partition into memory
-            emon_event_reader = parser.event_reader(partition=partition, chunk_size=0)
-            emon_df = next(emon_event_reader)
-            unique_events = unique_events.union(set(emon_df['name']))
-            print('.', end='', flush=True)
+        if args.num_workers > 1:
             detail_views_requested = not args.no_detail_views
-            # Generate partial detail views for the partition and write to storage
-            if detail_views_requested:
-                detail_views = view_generator.generate_detail_views(emon_df)
-                data_accumulator.update_statistics(detail_views)
-                view_writer.write(list(detail_views.values()),
-                                  first_sample=parser.first_sample_processed,
-                                  last_sample=parser.last_sample_processed)
-            else:
-                data_accumulator.update_statistics(df=emon_df)
-            # Compute summary data for the partition and update it in the accumulator
-            event_aggregates = view_generator.compute_aggregates(emon_df)
-            data_accumulator.update_aggregates(event_aggregates)
-
+            print(f'There are {len(partitions)} partitions in total')
+            with Pool() as pool:
+                results = pool.map(process_one_partition, [partition for partition in partitions])
+            sample_count = 0
+            for emon_df, count, detail_views in results:
+                unique_events = unique_events.union(set(emon_df['name']))
+                if detail_views_requested:
+                    data_accumulator.update_statistics(detail_views)
+                else:
+                    data_accumulator.update_statistics(df=emon_df)
+                # Compute summary data for the partition and update it in the accumulator
+                event_aggregates = view_generator.compute_aggregates(emon_df)
+                data_accumulator.update_aggregates(event_aggregates)
+                sample_count += count
+            del results
+        else:        
+            for partition in partitions:
+                # Read the entire partition into memory
+                emon_event_reader = parser.event_reader(partition=partition, chunk_size=0)
+                emon_df = next(emon_event_reader)
+                unique_events = unique_events.union(set(emon_df['name']))
+                print('.', end='', flush=True)
+                detail_views_requested = not args.no_detail_views
+                # Generate partial detail views for the partition and write to storage
+                if detail_views_requested:
+                    detail_views = view_generator.generate_detail_views(emon_df)
+                    data_accumulator.update_statistics(detail_views)
+                    view_writer.write(list(detail_views.values()),
+                                    first_sample=parser.first_sample_processed,
+                                    last_sample=parser.last_sample_processed)
+                else:
+                    data_accumulator.update_statistics(df=emon_df)
+                # Compute summary data for the partition and update it in the accumulator
+                event_aggregates = view_generator.compute_aggregates(emon_df)
+                data_accumulator.update_aggregates(event_aggregates)
+            sample_count = parser.last_sample_processed - parser.very_first_sample_processed + 1
         print()
         print(f'Generated all details tables and computed summary aggregations in {number_of_seconds}')
 
@@ -161,7 +197,7 @@ def run(args):
                                   last_sample=parser.last_sample_processed)
                 tps_views = [value.attributes for _, value in tps_summary_views.items()]
                 print(f'Generated all Transactions Per Second tables in {number_of_seconds}')
-    sample_count = parser.last_sample_processed - parser.very_first_sample_processed + 1
+
     print(f'{sample_count} samples processed')
     print(f'{len(unique_events)} events parsed and {total_metrics_parsed} metrics derived.')
 

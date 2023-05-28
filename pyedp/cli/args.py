@@ -323,7 +323,12 @@ def parse_args() -> argparse.Namespace:
                                        'Set to 0 to process the entire input file in memory '
                                        '(may cause an out of memory error when processing large files)',
                                   )
-
+    optional_options.add_argument('-w', '--worker',
+                                  dest='num_workers',
+                                  type=IntegerRange(),
+                                  default=1,
+                                  help='Maximum number of worker processes to parse in parallel'
+                                  )
     misc_options = parser.add_argument_group('Miscellaneous options')
     misc_options.add_argument('-h', '--help',
                               help='Show this help message and exit',
