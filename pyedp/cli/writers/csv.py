@@ -31,7 +31,7 @@ class CSVWriter(OutputWriter):
         self.__csv_files = {}
         self.__csv_directory = csv_directory_path
 
-    def write(self, title: str, content: pd.DataFrame, attributes: Optional[ViewAttributes] = None) -> None:
+    def write(self, title: str, content: pd.DataFrame, attributes: Optional[ViewAttributes] = None, mode: str = None, print_header: bool = None) -> None:
         """
         Write/append the content of a Pandas DataFrame to a CSV file.
         The file is created if it does not exist.
@@ -41,8 +41,10 @@ class CSVWriter(OutputWriter):
         :param attributes: view attributes (optional)
         """
         csv_info = self.__get_csv_file(title)
-        mode = 'w' if csv_info.start_row == 0 else 'a'
-        print_header = True if csv_info.start_row == 0 else False
+        if mode is None:
+            mode = 'w' if csv_info.start_row == 0 else 'a'
+        if print_header is None:
+            print_header = True if csv_info.start_row == 0 else False
         # Pandas "to_csv" function works significantly faster with larger chunk size (default is None).
         # chunksize=200 seems to yield a good speed-up with a reasonable memory consumption.
         content.to_csv(csv_info.path, header=print_header, index=False, mode=mode, date_format='%m/%d/%Y %H:%M:%S.%f',

@@ -50,7 +50,9 @@ class ViewWriter(AbstractContextManager):
     def write(self,
               views: List[ViewData],
               first_sample: int,
-              last_sample: int) -> None:
+              last_sample: int,
+              mode: str = None,
+              print_header: bool = None) -> None:
         """
         Write EDP views to output.
 
@@ -63,11 +65,11 @@ class ViewWriter(AbstractContextManager):
                 continue
             formatter = self.__formatters[(view.attributes.aggregation_level, view.attributes.view_type)]
             formatted_content = formatter.format(view.data, first_sample, last_sample)
-            self.__write(view.attributes, formatted_content)
+            self.__write(view.attributes, formatted_content, mode, print_header)
 
-    def __write(self, view_attributes: ViewAttributes, view_content: pd.DataFrame) -> None:
+    def __write(self, view_attributes: ViewAttributes, view_content: pd.DataFrame, mode: str = None, print_header: bool = None) -> None:
         for writer in self.__writers:
-            writer.write(f'{view_attributes.view_name}', view_content, view_attributes)
+            writer.write(f'{view_attributes.view_name}', view_content, view_attributes, mode, print_header)
 
     def __initialize_view_formatters(self):
         def create_view_formatter(agg_level: ViewAggregationLevel, view_type: ViewType):

@@ -10,9 +10,10 @@
 #
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List
-from multiprocess import Pool
+from multiprocess import Pool, Manager
 
 import cli.args
 from cli.args import parse_args
@@ -112,25 +113,41 @@ def run(args):
     print('Processing EMON data: ...', end='', flush=True)
     unique_events = set()
     num_blocks = len(parser.partition(chunk_size=1, **cli.args.get_sample_range_args(args)))
-    if args.num_workers:
+    if args.num_workers > 1:
         args.chunk_size = num_blocks // args.num_workers + 1 if num_blocks%args.num_workers!=0 else 0
     
     # Split the EMON file into partitions that can be processed in parallel
     partitions = parser.partition(chunk_size=args.chunk_size,
                                   **cli.args.get_sample_range_args(args))
 
-    def process_one_partition(partition):
+    def process_one_partition(idx, partition, offsets):
         # Read the entire partition into memory
         emon_event_reader = parser.event_reader(partition=partition, chunk_size=0)
         emon_df = next(emon_event_reader)
         sample_count = parser.last_sample_processed - parser.very_first_sample_processed + 1
-
+        
         if detail_views_requested:
             detail_views = view_generator.generate_detail_views(emon_df)
+            if idx > 0:
+                while idx not in offsets.keys():
+                    time.sleep(0.1)
+                offset = offsets[idx]
+                mode = 'a'
+                print_header = False
+            else:
+                offset = 0
+                mode = 'w'
+                print_header = True
+            
             view_writer.write(list(detail_views.values()),
                             first_sample=parser.first_sample_processed,
-                            last_sample=parser.last_sample_processed)
-        
+                            last_sample=parser.last_sample_processed,
+                            mode=mode,
+                            print_header=print_header)
+            offsets[idx + 1] = offset + sample_count
+            print(idx, parser.first_sample_processed, parser.last_sample_processed)
+            
+            
         return emon_df, sample_count, detail_views if detail_views_requested else None
 
     with timer() as number_of_seconds:
@@ -138,9 +155,9 @@ def run(args):
         # Iterations are independent and can therefore run in parallel.
         if args.num_workers > 1:
             detail_views_requested = not args.no_detail_views
-            print(f'There are {len(partitions)} partitions in total')
+            offsets = Manager().dict()
             with Pool() as pool:
-                results = pool.map(process_one_partition, [partition for partition in partitions])
+                results = pool.starmap(process_one_partition, [(idx, partition, offsets) for idx, partition in enumerate(partitions)])
             sample_count = 0
             for emon_df, count, detail_views in results:
                 unique_events = unique_events.union(set(emon_df['name']))
