@@ -145,10 +145,8 @@ def run(args):
                             mode=mode,
                             print_header=print_header)
             offsets[idx + 1] = offset + sample_count
-            print(idx, parser.first_sample_processed, parser.last_sample_processed)
             
-            
-        return emon_df, sample_count, detail_views if detail_views_requested else None
+        return emon_df, sample_count
 
     with timer() as number_of_seconds:
         # Process each partitions independently and serialize all computation results.
@@ -159,17 +157,13 @@ def run(args):
             with Pool() as pool:
                 results = pool.starmap(process_one_partition, [(idx, partition, offsets) for idx, partition in enumerate(partitions)])
             sample_count = 0
-            for emon_df, count, detail_views in results:
+            for emon_df, count in results:
                 unique_events = unique_events.union(set(emon_df['name']))
-                if detail_views_requested:
-                    data_accumulator.update_statistics(detail_views)
-                else:
-                    data_accumulator.update_statistics(df=emon_df)
+                data_accumulator.update_statistics(df=emon_df)
                 # Compute summary data for the partition and update it in the accumulator
                 event_aggregates = view_generator.compute_aggregates(emon_df)
                 data_accumulator.update_aggregates(event_aggregates)
                 sample_count += count
-            del results
         else:        
             for partition in partitions:
                 # Read the entire partition into memory
