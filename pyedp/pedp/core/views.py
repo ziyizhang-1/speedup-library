@@ -244,7 +244,7 @@ class _MinMax(_BaseStat):
 
     def compute(self, df: pd.DataFrame) -> None:
         stats = [np.min, np.max]
-        block_stats_df = df.agg(stats, axis='index', skipna=True, numeric_only=True).T
+        block_stats_df = df.agg(stats, axis='index').T
         block_stats_df.columns = self.__columns
         if self.__stats_df is None:
             self.__stats_df = block_stats_df.copy()
