@@ -96,6 +96,12 @@ Generate all CSVs _without_ the excel file output (speeds-up processing by 2X or
 python edp.py -i /path/to/emon.dat -m /path/to/metrics.xml -o /path/to/file/output --socket-view --core-view --thread-view --no-detail-views
 ```
 
+Generate all summary views _without_ the detail views with multiprocessing (speeds-up processing by 15X or more):
+```
+python edp.py -i /path/to/emon.dat -m /path/to/metrics.xml -o /path/to/excel/output/summary.xlsx --socket-view --core-view --thread-view --no-detail-views --worker 8
+# the number of workers may affect the efficiency depends on types of machines
+```
+
 # Known Issues and Limitations <a name="known-issues"></a>
 
 1. Some EDP options (e.g., --normalize, --interval, --qpi) are not supported. 
