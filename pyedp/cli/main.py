@@ -114,7 +114,7 @@ def run(args):
     unique_events = set()
     num_blocks = len(parser.partition(chunk_size=1, **cli.args.get_sample_range_args(args)))
     if args.num_workers > 1:
-        args.chunk_size = num_blocks // args.num_workers + 1 if num_blocks%args.num_workers!=0 else 0
+        args.chunk_size = num_blocks // args.num_workers + (1 if num_blocks%args.num_workers!=0 else 0)
     
     # Split the EMON file into partitions that can be processed in parallel
     partitions = parser.partition(chunk_size=args.chunk_size,
