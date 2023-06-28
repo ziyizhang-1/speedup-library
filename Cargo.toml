@@ -1,5 +1,5 @@
 [package]
-name = "merge_dicts"
+name = "speedup-library"
 version = "0.1.0"
 edition = "2021"
 
@@ -19,3 +19,4 @@ crate-type = ["cdylib"]
 [dependencies]
 rand = "0.8.5"
 pyo3 = { version = "0.18.3", features = ["extension-module"] }
+clap = { version = "4.3.8", features = ["derive"] }
