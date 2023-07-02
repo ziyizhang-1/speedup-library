@@ -4,3 +4,4 @@
 __pycache__
 _emon
 .DS_store
+.vscode

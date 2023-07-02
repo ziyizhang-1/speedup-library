@@ -1,6 +1,6 @@
 // Import necessary libraries
-mod merge_dicts;
-use merge_dicts::merge_dicts::run;
+mod par_sort;
+use par_sort::quick_sort::run;
 
 fn main() {
     run();
